@@ -237,7 +237,7 @@
     <div class="container">
         <header>
             <h1>Загрузка GLB модели в Three.js </h1>
-            <p class="subtitle"></p>
+            <p class="subtitle">.</p>
         </header>
         
         <div class="content">
@@ -368,7 +368,49 @@
             // Запускаем анимацию
             animate();
         }
-        
+        /* ---------- функция в глобальной области ---------- */
+        function addBBox(obj) {
+        // удалить старую рамку, если была
+        if (obj.userData.bbox) {
+            obj.remove(obj.userData.bbox);
+            obj.userData.bbox.geometry.dispose();
+            obj.userData.bbox.material.dispose();
+        }
+
+        /* === 1. актуализируем матрицы === */
+        obj.updateMatrixWorld(true);
+
+        /* === 2. граница в мире === */
+        const worldBox = new THREE.Box3().setFromObject(obj);
+
+        /* === 3. размеры, скорректированные на МИРОВОЙ масштаб объекта === */
+        const size      = worldBox.getSize(new THREE.Vector3());
+        const worldScl  = new THREE.Vector3();
+        obj.getWorldScale(worldScl);          // например (0.01, 0.01, 0.01)
+
+        size.divide(worldScl);                // убираем «первое» умножение
+
+        /* === 4. центр в локе === */
+        const center = worldBox.getCenter(new THREE.Vector3());
+        obj.worldToLocal(center);
+
+        /* === 5. коробка‑проволока === */
+        const geom  = new THREE.BoxGeometry(size.x, size.y, size.z);
+        geom.translate(center.x, center.y, center.z);
+
+        const edges = new THREE.EdgesGeometry(geom);
+        const bbox  = new THREE.LineSegments(
+            edges,
+            new THREE.LineBasicMaterial({ color: 0xffff00, opacity: 0.7, transparent: true })
+        );
+
+        /* === 6. добавляем и запоминаем === */
+        obj.add(bbox);
+        obj.userData.bbox = bbox;
+        }
+
+            /* ---------- конец функции ---------- */
+
         // Добавляем освещение
         function addLights() {
             // Окружающий свет
@@ -412,7 +454,7 @@
             updateStatus('Начало загрузки модели...');
             
             // URL модели (встроенная модель Duck.glb)
-            const modelUrl = 'model.glb';
+            const modelUrl = '../model.glb';
             
             loader.load(
                 modelUrl,
@@ -432,6 +474,9 @@
                     
                     scene.add(model);
                     
+                   addBBox(model);
+
+
                     updateStatus('Модель успешно загружена!');
                     progressBar.style.width = '100%';
                     
