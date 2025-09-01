@@ -1,643 +1,415 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Загрузка GLB модели в Three.js 0.178.0</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
-            color: #fff;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        
-        .container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            padding: 20px;
-        }
-        
-        header {
-            text-align: center;
-            padding: 20px 0;
-            margin-bottom: 20px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-        
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-        }
-        
-        .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            max-width: 800px;
-            margin: 0 auto;
-            line-height: 1.6;
-        }
-        
-        .content {
-            display: flex;
-            flex: 1;
-            gap: 20px;
-        }
-        
-        #canvas-container {
-            flex: 3;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            background: rgba(0, 0, 0, 0.2);
-            position: relative;
-        }
-        
-        .controls {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .control-group {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 15px;
-        }
-        
-        h2 {
-            font-size: 1.5rem;
-            margin-bottom: 15px;
-            color: #ffcc00;
-            text-align: center;
-        }
-        
-        .control-item {
-            margin-bottom: 15px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        
-        input[type="range"] {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            outline: none;
-            -webkit-appearance: none;
-        }
-        
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #ffcc00;
-            border-radius: 50%;
-            cursor: pointer;
-        }
-        
-        .button-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        button {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            background: linear-gradient(to right, #ff8c00, #ffcc00);
-            color: #1a1a1a;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 120px;
-        }
-        
-        button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(255, 204, 0, 0.4);
-        }
-        
-        .status {
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: auto;
-        }
-        
-        .status h2 {
-            margin-bottom: 10px;
-        }
-        
-        #progress-bar {
-            height: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-            margin: 10px 0;
-            overflow: hidden;
-        }
-        
-        #progress {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(to right, #00c9ff, #92fe9d);
-            transition: width 0.3s ease;
-        }
-        
-        #status-text {
-            text-align: center;
-            font-size: 0.9rem;
-            color: #ccc;
-        }
-        
-        .loading {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 10;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255, 255, 255, 0.1);
-            border-top: 5px solid #ffcc00;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .loading-text {
-            font-size: 1.2rem;
-            text-align: center;
-        }
-        
-        .model-info {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
-            font-size: 0.9rem;
-            color: #ccc;
-        }
-        
-        footer {
-            text-align: center;
-            padding: 20px;
-            margin-top: 20px;
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.7);
-        }
-        
-        @media (max-width: 900px) {
-            .content {
-                flex-direction: column;
-            }
-            
-            #canvas-container {
-                min-height: 60vh;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Three.js r126 — GLB + свободная камера (WASD)</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
+    body { background: radial-gradient(1200px 600px at 20% 0%, #233, #111 55%); color:#fff; min-height:100vh; overflow:hidden; }
+    .container { display:flex; flex-direction:column; height:100vh; padding:20px; gap:20px; }
+    header { text-align:center; padding:12px 16px; background:rgba(255,255,255,.04); border-radius:14px; backdrop-filter: blur(6px); }
+    h1 { font-size:24px; font-weight:700; letter-spacing:.2px; }
+    .subtitle { opacity:.8; font-size:14px; margin-top:4px; }
+    .content { display:flex; gap:20px; flex:1; min-height:0; }
+    #canvas-container { position:relative; flex:3; min-height:320px; border-radius:14px; overflow:hidden; background:rgba(255,255,255,.02); box-shadow:0 10px 30px rgba(0,0,0,.35) inset, 0 8px 32px rgba(0,0,0,.3); }
+    .controls { flex:1; display:flex; flex-direction:column; gap:16px; background:rgba(255,255,255,.04); border-radius:14px; padding:16px; }
+    .card { background:rgba(255,255,255,.05); border-radius:12px; padding:12px; }
+    .card h2 { font-size:16px; margin-bottom:10px; color:#ffcc00; text-align:center; }
+    label { display:block; font-size:13px; margin-bottom:6px; }
+    input[type="range"] { width:100%; height:8px; background:rgba(255,255,255,.1); border-radius:5px; outline:none; -webkit-appearance:none; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; background:#ffcc00; border-radius:50%; cursor:pointer; }
+    .row { display:flex; gap:8px; }
+    .row > button { flex:1; }
+    button { padding:10px 12px; border:none; border-radius:10px; background:linear-gradient(90deg, #ffb700, #ffe178); color:#222; font-weight:700; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease; }
+    button:hover { transform: translateY(-2px); box-shadow:0 8px 16px rgba(255,223,0,.3); }
+    .status { margin-top:auto; font-size:13px; }
+    #progress-bar { height:10px; background:rgba(255,255,255,.1); border-radius:6px; overflow:hidden; margin:8px 0; }
+    #progress { width:0%; height:100%; background:linear-gradient(90deg,#00c9ff,#92fe9d); transition:width .25s ease; }
+    .loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; background:rgba(0,0,0,.45); z-index:2; }
+    .spinner { width:48px; height:48px; border:5px solid rgba(255,255,255,.15); border-top:5px solid #ffcc00; border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .hint { position:absolute; right:14px; bottom:14px; font-size:12px; opacity:.8; background:rgba(255,255,255,.06); padding:6px 10px; border-radius:8px; }
+    footer { text-align:center; font-size:12px; opacity:.8; }
+    @media (max-width: 900px) { .content { flex-direction:column; } #canvas-container { min-height:60vh; } }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Загрузка GLB модели в Three.js </h1>
-            <p class="subtitle">.</p>
-        </header>
-        
-        <div class="content">
-            <div id="canvas-container">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <div class="loading-text">Загрузка Three.js и модели...</div>
-                </div>
-            </div>
-            
-            <div class="controls">
-                <div class="control-group">
-                    <h2>Управление моделью</h2>
-                    <div class="control-item">
-                        <label for="rotation-speed">Скорость вращения: <span id="rotation-value">0.5</span></label>
-                        <input type="range" id="rotation-speed" min="0" max="1" step="0.01" value="0.5">
-                    </div>
-                    <div class="control-item">
-                        <label for="model-scale">Масштаб модели: <span id="scale-value">1.0</span></label>
-                        <input type="range" id="model-scale" min="0.1" max="2" step="0.1" value="1">
-                    </div>
-                    <div class="button-group">
-                        <button id="reset-position">Сбросить позицию</button>
-                        <button id="toggle-rotation">Включить вращение</button>
-                    </div>
-                </div>
-                
-                <div class="control-group">
-                    <h2>Освещение</h2>
-                    <div class="control-item">
-                        <label for="ambient-light">Окружающий свет: <span id="ambient-value">0.5</span></label>
-                        <input type="range" id="ambient-light" min="0" max="1" step="0.01" value="0.5">
-                    </div>
-                    <div class="control-item">
-                        <label for="directional-light">Направленный свет: <span id="directional-value">1.0</span></label>
-                        <input type="range" id="directional-light" min="0" max="1" step="0.01" value="1.0">
-                    </div>
-                    <div class="button-group">
-                        <button id="light-color1">Жёлтый свет</button>
-                        <button id="light-color2">Голубой свет</button>
-                    </div>
-                </div>
-                
-                <div class="status">
-                    <h2>Состояние загрузки</h2>
-                    <div id="progress-bar">
-                        <div id="progress"></div>
-                    </div>
-                    <div id="status-text">Ожидание загрузки скриптов...</div>
-                    <div class="model-info">
-                        <span>Формат: GLB</span>
-                        <span>Версия Three.js: 0.178.0</span>
-                    </div>
-                </div>
-            </div>
+  <div class="container">
+    <header>
+      <h1>Загрузка GLB в Three.js (r126) + свободная камера</h1>
+      <div class="subtitle">Клик по сцене — захват мыши, WASD — ходьба, Shift — ускорение, Space/Ctrl — вверх/вниз.</div>
+    </header>
+
+    <div class="content">
+      <div id="canvas-container">
+        <div class="loading" id="loading">
+          <div class="spinner"></div>
+          <div>Загрузка Three.js и модели...</div>
         </div>
-        
-        <footer>
-            Three.js GLB Loader Demo | Для вращения модели используйте мышь | Для масштабирования используйте колесо мыши
-        </footer>
+        <div class="hint">Нажмите по сцене, чтобы включить управление камерой</div>
+      </div>
+
+      <aside class="controls">
+        <div class="card">
+          <h2>Модель</h2>
+          <label for="rotation-speed">Скорость вращения: <b id="rotation-value">0.50</b></label>
+          <input type="range" id="rotation-speed" min="0" max="1" step="0.01" value="0.5">
+
+          <label style="margin-top:12px" for="model-scale">Масштаб модели: <b id="scale-value">1.0</b></label>
+          <input type="range" id="model-scale" min="0.5" max="2" step="0.1" value="1">
+          <div class="row" style="margin-top:10px">
+            <button id="reset-position">Сбросить позицию</button>
+            <button id="toggle-rotation">Выключить вращение</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Освещение</h2>
+          <label for="ambient-light">Окружающий свет: <b id="ambient-value">0.50</b></label>
+          <input type="range" id="ambient-light" min="0" max="1" step="0.01" value="0.5">
+          <label style="margin-top:12px" for="directional-light">Направленный свет: <b id="directional-value">1.00</b></label>
+          <input type="range" id="directional-light" min="0" max="1" step="0.01" value="1.0">
+          <div class="row" style="margin-top:10px">
+            <button id="light-color1">Жёлтый свет</button>
+            <button id="light-color2">Голубой свет</button>
+          </div>
+        </div>
+
+        <div class="card status">
+          <div><b>Состояние загрузки</b></div>
+          <div id="progress-bar"><div id="progress"></div></div>
+          <div id="status-text">Ожидание загрузки скриптов...</div>
+          <div style="display:flex; justify-content:space-between; margin-top:6px; opacity:.85">
+            <span>Формат: GLB</span>
+            <span>Версия Three.js: <span id="three-rev">—</span></span>
+          </div>
+        </div>
+      </aside>
     </div>
 
-    <!-- Подключаем Three.js и GLTFLoader -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
-    
-    <script>
-        // Основные переменные
-        let scene, camera, renderer, model;
-        let ambientLight, directionalLight;
-        let loader, controls;
-        let rotateModel = true;
-        let rotationSpeed = 0.5;
-        
-        // Элементы интерфейса
-        const loadingOverlay = document.querySelector('.loading');
-        const progressBar = document.getElementById('progress');
-        const statusText = document.getElementById('status-text');
-        const rotationValue = document.getElementById('rotation-value');
-        const scaleValue = document.getElementById('scale-value');
-        const ambientValue = document.getElementById('ambient-value');
-        const directionalValue = document.getElementById('directional-value');
-        
-        // Инициализация Three.js
-        function init() {
-            // Обновляем статус
-            updateStatus('Создание сцены...');
-            
-            // Создаем сцену
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a1a2e);
-            scene.fog = new THREE.Fog(0x1a1a2e, 10, 20);
-            
-            // Создаем камеру
-            camera = new THREE.PerspectiveCamera(
-                75, 
-                window.innerWidth / window.innerHeight,
-                0.1,
-                1000
-            );
-            camera.position.set(0, 0, 5);
-            
-            // Создаем рендерер
-            renderer = new THREE.WebGLRenderer({ 
-                antialias: true,
-                alpha: true
-            });
-            renderer.setSize(document.getElementById('canvas-container').offsetWidth, 
-                            document.getElementById('canvas-container').offsetHeight);
-            renderer.shadowMap.enabled = true;
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-            
-            // Добавляем освещение
-            addLights();
-            
-            // Добавляем элементы окружения
-            addEnvironment();
-            
-            // Инициализируем загрузчик
-            loader = new THREE.GLTFLoader();
-            
-            // Загружаем модель
-            loadModel();
-            
-            // Обработчики событий
-            setupEventListeners();
-            
-            // Запускаем анимацию
-            animate();
+    <footer>Three.js GLB Loader Demo · Колесо мыши — масштаб модели</footer>
+  </div>
+
+  <!-- Three.js r126 + GLTFLoader + PointerLockControls (версии должны совпадать) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://unpkg.com/three@0.126.0/examples/js/controls/PointerLockControls.js"></script>
+
+  <script>
+    // ======== Глобальные переменные ========
+    let scene, camera, renderer, model;
+    let ambientLight, directionalLight, loader, controls;
+    let rotateModel = true;
+    let rotationSpeed = 0.0;
+
+    // Клавиши и таймер дельты — ГЛОБАЛЬНО, чтобы не было ReferenceError
+    const keys  = { w:false, a:false, s:false, d:false, space:false, ctrl:false, shift:false };
+    const clock = new THREE.Clock();
+
+    // UI
+    const containerEl = document.getElementById('canvas-container');
+    const loadingOverlay = document.getElementById('loading');
+    const progressBar = document.getElementById('progress');
+    const statusText = document.getElementById('status-text');
+    const rotationValue = document.getElementById('rotation-value');
+    const scaleValue = document.getElementById('scale-value');
+    const ambientValue = document.getElementById('ambient-value');
+    const directionalValue = document.getElementById('directional-value');
+    const threeRev = document.getElementById('three-rev');
+
+    // ======== Инициализация ========
+    function init() {
+      updateStatus('Создание сцены...');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0f1620);
+      scene.fog = new THREE.Fog(0x0f1620, 1, 150);
+
+      camera = new THREE.PerspectiveCamera(75, containerEl.offsetWidth / containerEl.offsetHeight, 0.1, 1000);
+      camera.position.set(0, 1.2, 4);
+
+      renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+      renderer.setSize(containerEl.offsetWidth, containerEl.offsetHeight);
+      renderer.shadowMap.enabled = true;
+      containerEl.appendChild(renderer.domElement);
+
+      // Свободная камера (Pointer Lock)
+      controls = new THREE.PointerLockControls(camera, renderer.domElement);
+      scene.add(controls.getObject());
+
+      // Клик по сцене — захват мыши
+      containerEl.addEventListener('click', () => controls.lock());
+
+      addLights();
+      addEnvironment();
+
+      // Загрузчик GLTF/GLB
+      loader = new THREE.GLTFLoader();
+
+      loadModel();
+
+      setupEventListeners();
+
+      // Версия three.js
+      threeRev.textContent = 'r' + THREE.REVISION;
+
+      animate();
+    }
+
+    // ======== Свет ========
+    function addLights() {
+      ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+
+      directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      directionalLight.position.set(3, 6, 2);
+      directionalLight.castShadow = true;
+      directionalLight.shadow.mapSize.set(1024, 1024);
+      directionalLight.shadow.camera.near = 0.5;
+      directionalLight.shadow.camera.far = 50;
+      scene.add(directionalLight);
+
+      const helper = new THREE.DirectionalLightHelper(directionalLight, 0.6);
+      scene.add(helper);
+    }
+
+    // ======== Окружение (пол + сетка) ========
+    function addEnvironment() {
+      const planeGeo = new THREE.PlaneGeometry(40, 40);
+      const planeMat = new THREE.MeshStandardMaterial({ color:0x0a3d62, roughness:0.85, metalness:0.15 });
+      const plane = new THREE.Mesh(planeGeo, planeMat);
+      plane.rotation.x = -Math.PI / 2;
+      plane.position.y = -2;
+      plane.receiveShadow = true;
+      scene.add(plane);
+
+      const grid = new THREE.GridHelper(40, 40, 0xffffff, 0xffffff);
+      grid.position.y = -2;
+      grid.material.opacity = 0.18;
+      grid.material.transparent = true;
+      scene.add(grid);
+    }
+
+    // ======== Загрузка модели ========
+    function loadModel() {
+      updateStatus('Начало загрузки модели...');
+
+      // Путь к вашей модели: замените при необходимости
+      const modelUrl = '../model.glb';
+
+      loader.load(
+        modelUrl,
+        (gltf) => {
+          model = gltf.scene;
+          model.position.set(0, -1, 0);
+          model.scale.set(1, 1, 1);
+
+          model.traverse((child) => {
+            if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+          });
+
+          scene.add(model);
+          addBBox(model);
+
+          // Синхронизируем UI масштаба
+          document.getElementById('model-scale').value = 1;
+          scaleValue.textContent = '1.0';
+
+          updateStatus('Модель успешно загружена!');
+          progressBar.style.width = '100%';
+          setTimeout(() => {
+            loadingOverlay.style.opacity = '0';
+            setTimeout(() => { loadingOverlay.style.display = 'none'; }, 400);
+          }, 600);
+        },
+        (xhr) => {
+          if (xhr.total) {
+            const percent = (xhr.loaded / xhr.total) * 100;
+            progressBar.style.width = percent.toFixed(0) + '%';
+            updateStatus('Загрузка модели: ' + Math.round(percent) + '%');
+          } else {
+            // Если браузер не предоставляет total, просто показываем «идёт загрузка»
+            updateStatus('Загрузка модели…');
+          }
+        },
+        (error) => {
+          console.error('Ошибка загрузки модели', error);
+          updateStatus('Ошибка загрузки модели. Проверьте консоль.');
+          progressBar.style.background = '#ff4757';
         }
-        /* ---------- функция в глобальной области ---------- */
-        function addBBox(obj) {
-        // удалить старую рамку, если была
-        if (obj.userData.bbox) {
-            obj.remove(obj.userData.bbox);
-            obj.userData.bbox.geometry.dispose();
-            obj.userData.bbox.material.dispose();
-        }
+      );
+    }
 
-        /* === 1. актуализируем матрицы === */
-        obj.updateMatrixWorld(true);
+    // ======== Вспомогательная рамка вокруг модели ========
+    function addBBox(obj) {
+      if (!obj) return;
 
-        /* === 2. граница в мире === */
-        const worldBox = new THREE.Box3().setFromObject(obj);
+      // удалить старую рамку, если была
+      if (obj.userData.bbox) {
+        obj.remove(obj.userData.bbox);
+        obj.userData.bbox.geometry.dispose();
+        obj.userData.bbox.material.dispose();
+      }
 
-        /* === 3. размеры, скорректированные на МИРОВОЙ масштаб объекта === */
-        const size      = worldBox.getSize(new THREE.Vector3());
-        const worldScl  = new THREE.Vector3();
-        obj.getWorldScale(worldScl);          // например (0.01, 0.01, 0.01)
+      obj.updateMatrixWorld(true);
+      const worldBox = new THREE.Box3().setFromObject(obj);
+      const size = worldBox.getSize(new THREE.Vector3());
+      const worldScl = new THREE.Vector3();
+      obj.getWorldScale(worldScl);
+      size.divide(worldScl);
+      const center = worldBox.getCenter(new THREE.Vector3());
+      obj.worldToLocal(center);
 
-        size.divide(worldScl);                // убираем «первое» умножение
+      const geom = new THREE.BoxGeometry(size.x, size.y, size.z);
+      geom.translate(center.x, center.y, center.z);
+      const edges = new THREE.EdgesGeometry(geom);
+      const bbox = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color:0xffff00, opacity:0.7, transparent:true }));
+      obj.add(bbox);
+      obj.userData.bbox = bbox;
+    }
 
-        /* === 4. центр в локе === */
-        const center = worldBox.getCenter(new THREE.Vector3());
-        obj.worldToLocal(center);
+    // ======== UI и события ========
+    function setupEventListeners() {
+      // Изменение размера окна
+      window.addEventListener('resize', onWindowResize);
 
-        /* === 5. коробка‑проволока === */
-        const geom  = new THREE.BoxGeometry(size.x, size.y, size.z);
-        geom.translate(center.x, center.y, center.z);
+      // Ползунки и кнопки
+      document.getElementById('rotation-speed').addEventListener('input', (e) => {
+        rotationSpeed = parseFloat(e.target.value);
+        rotationValue.textContent = rotationSpeed.toFixed(2);
+      });
 
-        const edges = new THREE.EdgesGeometry(geom);
-        const bbox  = new THREE.LineSegments(
-            edges,
-            new THREE.LineBasicMaterial({ color: 0xffff00, opacity: 0.7, transparent: true })
-        );
+      document.getElementById('model-scale').addEventListener('input', (e) => {
+        if (!model) return;
+        const s = parseFloat(e.target.value);
+        model.scale.set(s, s, s);
+        scaleValue.textContent = s.toFixed(1);
+        addBBox(model);
+      });
 
-        /* === 6. добавляем и запоминаем === */
-        obj.add(bbox);
-        obj.userData.bbox = bbox;
-        }
+      document.getElementById('ambient-light').addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        ambientLight.intensity = v;
+        ambientValue.textContent = v.toFixed(2);
+      });
 
-            /* ---------- конец функции ---------- */
+      document.getElementById('directional-light').addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        directionalLight.intensity = v;
+        directionalValue.textContent = v.toFixed(2);
+      });
 
-        // Добавляем освещение
-        function addLights() {
-            // Окружающий свет
-            ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-            scene.add(ambientLight);
-            
-            // Направленный свет
-            directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(2, 3, 4);
-            directionalLight.castShadow = true;
-            scene.add(directionalLight);
-            
-            // Вспомогательный свет
-            const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 1);
-            scene.add(lightHelper);
-        }
-        
-        // Добавляем окружение
-        function addEnvironment() {
-            // Пол (плоскость)
-            const planeGeometry = new THREE.PlaneGeometry(20, 20);
-            const planeMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x0a3d62,
-                roughness: 0.8,
-                metalness: 0.2
-            });
-            const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-            plane.rotation.x = -Math.PI / 2;
-            plane.position.y = -2;
-            plane.receiveShadow = true;
-            scene.add(plane);
-            
-            // Сетка для пола
-            const gridHelper = new THREE.GridHelper(20, 20, 0xffffff, 0xffffff);
-            gridHelper.position.y = -2;
-            scene.add(gridHelper);
-        }
-        
-        // Загружаем модель
-        function loadModel() {
-            updateStatus('Начало загрузки модели...');
-            
-            // URL модели (встроенная модель Duck.glb)
-            const modelUrl = 'model.glb';
-            
-            loader.load(
-                modelUrl,
-                (gltf) => {
-                    // Успешная загрузка
-                    model = gltf.scene;
-                    
-                    // Настройка модели
-                    model.position.set(0, -1, 0);
-                    model.scale.set(0.01, 0.01, 0.01);
-                    model.traverse((child) => {
-                        if (child.isMesh) {
-                            child.castShadow = true;
-                            child.receiveShadow = true;
-                        }
-                    });
-                    
-                    scene.add(model);
-                    
-                   addBBox(model);
+      document.getElementById('reset-position').addEventListener('click', () => {
+        if (!model) return;
+        model.rotation.set(0, 0, 0);
+      });
 
+      document.getElementById('toggle-rotation').addEventListener('click', (e) => {
+        rotateModel = !rotateModel;
+        e.target.textContent = rotateModel ? 'Выключить вращение' : 'Включить вращение';
+      });
 
-                    updateStatus('Модель успешно загружена!');
-                    progressBar.style.width = '100%';
-                    
-                    // Скрываем прелоадер
-                    setTimeout(() => {
-                        loadingOverlay.style.opacity = '0';
-                        setTimeout(() => {
-                            loadingOverlay.style.display = 'none';
-                        }, 500);
-                    }, 1000);
-                },
-                (xhr) => {
-                    // Прогресс загрузки
-                    const percent = (xhr.loaded / xhr.total) * 100;
-                    progressBar.style.width = `${percent}%`;
-                    updateStatus(`Загрузка модели: ${Math.round(percent)}%`);
-                },
-                (error) => {
-                    // Ошибка загрузки
-                    console.error('Ошибка загрузки модели', error);
-                    updateStatus('Ошибка загрузки модели. Проверьте консоль для подробностей.');
-                    progressBar.style.background = '#ff4757';
-                }
-            );
-        }
-        
-        // Обновление статуса
-        function updateStatus(message) {
-            statusText.textContent = message;
-        }
-        
-        // Настройка обработчиков событий
-        function setupEventListeners() {
-            // Обработка изменения размера окна
-            window.addEventListener('resize', onWindowResize);
-            
-            // Элементы управления
-            document.getElementById('rotation-speed').addEventListener('input', (e) => {
-                rotationSpeed = parseFloat(e.target.value);
-                rotationValue.textContent = rotationSpeed.toFixed(2);
-            });
-            
-            document.getElementById('model-scale').addEventListener('input', (e) => {
-                if (model) {
-                    const scale = parseFloat(e.target.value);
-                    model.scale.set(scale, scale, scale);
-                    scaleValue.textContent = scale.toFixed(1);
-                }
-            });
-            
-            document.getElementById('ambient-light').addEventListener('input', (e) => {
-                const value = parseFloat(e.target.value);
-                ambientLight.intensity = value;
-                ambientValue.textContent = value.toFixed(2);
-            });
-            
-            document.getElementById('directional-light').addEventListener('input', (e) => {
-                const value = parseFloat(e.target.value);
-                directionalLight.intensity = value;
-                directionalValue.textContent = value.toFixed(2);
-            });
-            
-            document.getElementById('reset-position').addEventListener('click', () => {
-                if (model) {
-                    model.rotation.set(0, 0, 0);
-                }
-            });
-            
-            document.getElementById('toggle-rotation').addEventListener('click', (e) => {
-                rotateModel = !rotateModel;
-                e.target.textContent = rotateModel ? 'Выключить вращение' : 'Включить вращение';
-            });
-            
-            document.getElementById('light-color1').addEventListener('click', () => {
-                directionalLight.color.set(0xffff00);
-            });
-            
-            document.getElementById('light-color2').addEventListener('click', () => {
-                directionalLight.color.set(0x00ffff);
-            });
-            
-            // Вращение модели мышью
-            let isDragging = false;
-            let previousMousePosition = {
-                x: 0,
-                y: 0
-            };
-            
-            renderer.domElement.addEventListener('mousedown', (e) => {
-                isDragging = true;
-            });
-            
-            window.addEventListener('mousemove', (e) => {
-                if (!isDragging || !model) return;
-                
-                const deltaMove = {
-                    x: e.clientX - previousMousePosition.x,
-                    y: e.clientY - previousMousePosition.y
-                };
-                
-                model.rotation.y += deltaMove.x * 0.01;
-                model.rotation.x += deltaMove.y * 0.01;
-                
-                previousMousePosition = {
-                    x: e.clientX,
-                    y: e.clientY
-                };
-            });
-            
-            window.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
-            
-            // Масштабирование колесом мыши
-            renderer.domElement.addEventListener('wheel', (e) => {
-                if (!model) return;
-                
-                e.preventDefault();
-                const scale = model.scale.x + (e.deltaY * -0.001);
-                model.scale.set(
-                    Math.min(Math.max(0.5, scale), 2.0),
-                    Math.min(Math.max(0.5, scale), 2.0),
-                    Math.min(Math.max(0.5, scale), 2.0)
-                );
-                
-                document.getElementById('model-scale').value = scale;
-                scaleValue.textContent = scale.toFixed(1);
-            });
-        }
-        
-        // Обработка изменения размера окна
-        function onWindowResize() {
-            camera.aspect = document.getElementById('canvas-container').offsetWidth / 
-                            document.getElementById('canvas-container').offsetHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(
-                document.getElementById('canvas-container').offsetWidth, 
-                document.getElementById('canvas-container').offsetHeight
-            );
-        }
-        
-        // Анимация
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            // Вращение модели
-            if (model && rotateModel) {
-                model.rotation.y += 0.005 * rotationSpeed;
-            }
-            
-            // Плавное движение камеры
-            const time = Date.now() * 0.0005;
-            camera.position.x = Math.sin(time * 0.2) * 3;
-            camera.position.z = Math.cos(time * 0.2) * 3;
-            camera.lookAt(scene.position);
-            
-            renderer.render(scene, camera);
-        }
-        
-        // Запуск приложения после загрузки скриптов
-        window.onload = init;
-    </script>
+      document.getElementById('light-color1').addEventListener('click', () => directionalLight.color.set(0xffff00));
+      document.getElementById('light-color2').addEventListener('click', () => directionalLight.color.set(0x00ffff));
+
+      // Вращение модели мышью (до захвата мыши)
+      let isDragging = false;
+      let prev = { x: 0, y: 0 };
+
+      renderer.domElement.addEventListener('mousedown', () => {
+        // Если уже захвачен курсор (Pointer Lock), не включаем «drag-вращение»
+        if (!controls.isLocked) isDragging = true;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging || !model || controls.isLocked) { prev.x = e.clientX; prev.y = e.clientY; return; }
+        const dx = e.clientX - prev.x;
+        const dy = e.clientY - prev.y;
+        model.rotation.y += dx * 0.01;
+        model.rotation.x += dy * 0.01;
+        prev.x = e.clientX; prev.y = e.clientY;
+      });
+
+      window.addEventListener('mouseup', () => { isDragging = false; });
+
+      // Масштаб модели колесом мыши
+      renderer.domElement.addEventListener('wheel', (e) => {
+        if (!model) return;
+        e.preventDefault();
+        const current = model.scale.x;
+        const next = Math.min(Math.max(0.5, current + (-e.deltaY * 0.001)), 2.0);
+        model.scale.set(next, next, next);
+        document.getElementById('model-scale').value = next.toFixed(1);
+        scaleValue.textContent = next.toFixed(1);
+        addBBox(model);
+      }, { passive:false });
+
+      // ===== Клавиатура для свободной камеры =====
+      const block = new Set(['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft','ShiftRight','ControlLeft','ControlRight']);
+
+      window.addEventListener('keydown', (e) => {
+        if (block.has(e.code)) e.preventDefault();
+        if (e.code === 'KeyW') keys.w = true;
+        if (e.code === 'KeyA') keys.a = true;
+        if (e.code === 'KeyS') keys.s = true;
+        if (e.code === 'KeyD') keys.d = true;
+        if (e.code === 'Space') keys.space = true;
+        if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = true;
+        if (e.code === 'ControlLeft' || e.code === 'ControlRight') keys.ctrl = true;
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'KeyW') keys.w = false;
+        if (e.code === 'KeyA') keys.a = false;
+        if (e.code === 'KeyS') keys.s = false;
+        if (e.code === 'KeyD') keys.d = false;
+        if (e.code === 'Space') keys.space = false;
+        if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
+        if (e.code === 'ControlLeft' || e.code === 'ControlRight') keys.ctrl = false;
+      });
+    }
+
+    // ======== Resize ========
+    function onWindowResize() {
+      camera.aspect = containerEl.offsetWidth / containerEl.offsetHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(containerEl.offsetWidth, containerEl.offsetHeight);
+    }
+
+    // ======== Анимация ========
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (model && rotateModel && !controls.isLocked) {
+        model.rotation.y += 0.005 * rotationSpeed;
+      }
+
+      // Движение свободной камерой
+      const delta = clock.getDelta();
+      const baseSpeed = 4;
+      const speed = (keys.shift ? 20 : baseSpeed) * delta;
+
+      if (controls.isLocked) {
+        if (keys.w) controls.moveForward(speed);
+        if (keys.s) controls.moveForward(-speed);
+        if (keys.a) controls.moveRight(-speed);
+        if (keys.d) controls.moveRight(speed);
+
+        // Вертикаль (Space/Ctrl)
+        const obj = controls.getObject();
+        if (keys.space) obj.position.y += speed;
+        if (keys.ctrl)  obj.position.y -= speed;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // ======== Утилиты ========
+    function updateStatus(msg) { statusText.textContent = msg; }
+
+    // Старт
+    window.addEventListener('load', init);
+  </script>
 </body>
 </html>
