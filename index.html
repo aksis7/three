@@ -352,7 +352,7 @@ function resetArrowsVisual() {
     plane.receiveShadow = false;
     scene.add(plane);
     // Сетка
-    //const grid = new THREE.GridHelper(50, 50, 0xffffff, 0xffffff);
+    const grid = new THREE.GridHelper(50, 50, 0xffffff, 0xffffff);
     grid.position.y = -1.5 + 0.01;
     grid.material.opacity = 0.15;
     grid.material.transparent = true;
@@ -485,5 +485,6 @@ function resetArrowsVisual() {
   </script>
 </body>
 </html>
+
 
 
