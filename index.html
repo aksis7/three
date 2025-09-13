@@ -2,416 +2,382 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Three.js r126 — GLB + свободная камера (WASD)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Quiz Demo — Driving School</title>
   <style>
+    /* Общие стили для страницы и контейнеров */
     * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
-    body { background: radial-gradient(1200px 600px at 20% 0%, #233, #111 55%); color:#fff; min-height:100vh; overflow:hidden; }
-    .container { display:flex; flex-direction:column; height:100vh; padding:20px; gap:20px; }
-    header { text-align:center; padding:12px 16px; background:rgba(255,255,255,.04); border-radius:14px; backdrop-filter: blur(6px); }
-    h1 { font-size:24px; font-weight:700; letter-spacing:.2px; }
-    .subtitle { opacity:.8; font-size:14px; margin-top:4px; }
-    .content { display:flex; gap:20px; flex:1; min-height:0; }
-    #canvas-container { position:relative; flex:3; min-height:320px; border-radius:14px; overflow:hidden; background:rgba(255,255,255,.02); box-shadow:0 10px 30px rgba(0,0,0,.35) inset, 0 8px 32px rgba(0,0,0,.3); }
-    .controls { flex:1; display:flex; flex-direction:column; gap:16px; background:rgba(255,255,255,.04); border-radius:14px; padding:16px; }
-    .card { background:rgba(255,255,255,.05); border-radius:12px; padding:12px; }
-    .card h2 { font-size:16px; margin-bottom:10px; color:#ffcc00; text-align:center; }
-    label { display:block; font-size:13px; margin-bottom:6px; }
-    input[type="range"] { width:100%; height:8px; background:rgba(255,255,255,.1); border-radius:5px; outline:none; -webkit-appearance:none; }
-    input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; background:#ffcc00; border-radius:50%; cursor:pointer; }
-    .row { display:flex; gap:8px; }
-    .row > button { flex:1; }
-    button { padding:10px 12px; border:none; border-radius:10px; background:linear-gradient(90deg, #ffb700, #ffe178); color:#222; font-weight:700; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease; }
-    button:hover { transform: translateY(-2px); box-shadow:0 8px 16px rgba(255,223,0,.3); }
-    .status { margin-top:auto; font-size:13px; }
-    #progress-bar { height:10px; background:rgba(255,255,255,.1); border-radius:6px; overflow:hidden; margin:8px 0; }
-    #progress { width:0%; height:100%; background:linear-gradient(90deg,#00c9ff,#92fe9d); transition:width .25s ease; }
-    .loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; background:rgba(0,0,0,.45); z-index:2; }
-    .spinner { width:48px; height:48px; border:5px solid rgba(255,255,255,.15); border-top:5px solid #ffcc00; border-radius:50%; animation:spin 1s linear infinite; }
+    body { background:#0f1620; color:#fff; min-height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+    header { text-align:center; padding:12px 16px; background:rgba(255,255,255,.04); backdrop-filter:blur(4px); }
+    h1 { font-size:22px; font-weight:700; letter-spacing:0.2px; }
+    .subtitle { font-size:13px; opacity:.8; margin-top:4px; }
+    .main { flex:1; display:flex; gap:20px; padding:20px; min-height:0; }
+    #canvas-container { position:relative; flex:3; min-height:300px; border-radius:14px; overflow:hidden; background:rgba(255,255,255,.05); box-shadow:0 10px 30px rgba(0,0,0,.35) inset, 0 8px 32px rgba(0,0,0,.3); }
+    #canvas-container canvas { display:block; }
+    #quiz-panel { flex:1; display:flex; flex-direction:column; background:rgba(255,255,255,.05); border-radius:14px; padding:16px; gap:16px; }
+    #question { font-size:16px; font-weight:600; line-height:1.3; }
+    #quiz-controls { margin-top:auto; }
+    #start-btn, #next-btn { padding:10px; border:none; border-radius:10px; background:linear-gradient(90deg,#ffb700,#ffe178); color:#222; font-weight:700; cursor:pointer; }
+    #start-btn:hover, #next-btn:hover { transform:translateY(-2px); box-shadow:0 8px 16px rgba(255,223,0,.3); }
+    .loading { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(0,0,0,.45); z-index:2; }
+    .spinner { width:42px; height:42px; border:5px solid rgba(255,255,255,.15); border-top-color:#ffcc00; border-radius:50%; animation:spin 1s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
-    .hint { position:absolute; right:14px; bottom:14px; font-size:12px; opacity:.8; background:rgba(255,255,255,.06); padding:6px 10px; border-radius:8px; }
-    footer { text-align:center; font-size:12px; opacity:.8; }
-    @media (max-width: 900px) { .content { flex-direction:column; } #canvas-container { min-height:60vh; } }
+    @media(max-width:900px){ .main { flex-direction:column; } #canvas-container { min-height:50vh; } }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>Загрузка GLB в Three.js (r126) + свободная камера</h1>
-      <div class="subtitle">Клик по сцене — захват мыши, WASD — ходьба, Shift — ускорение, Space/Ctrl — вверх/вниз.</div>
-    </header>
-
-    <div class="content">
-      <div id="canvas-container">
-        <div class="loading" id="loading">
-          <div class="spinner"></div>
-          <div>Загрузка Three.js и модели...</div>
-        </div>
-        <div class="hint">Нажмите по сцене, чтобы включить управление камерой</div>
+  <header>
+    <h1>Интерактивный опрос на 3D‑сцене</h1>
+    <div class="subtitle">Нажмите кнопку «Старт», чтобы увидеть варианты на дороге и ответить на вопрос.</div>
+  </header>
+  <div class="main">
+    <div id="canvas-container">
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Загрузка сцены…</div>
       </div>
-
-      <aside class="controls">
-        <div class="card">
-          <h2>Модель</h2>
-          <label for="rotation-speed">Скорость вращения: <b id="rotation-value">0.50</b></label>
-          <input type="range" id="rotation-speed" min="0" max="1" step="0.01" value="0.5">
-
-          <label style="margin-top:12px" for="model-scale">Масштаб модели: <b id="scale-value">1.0</b></label>
-          <input type="range" id="model-scale" min="0.5" max="2" step="0.1" value="1">
-          <div class="row" style="margin-top:10px">
-            <button id="reset-position">Сбросить позицию</button>
-            <button id="toggle-rotation">Выключить вращение</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>Освещение</h2>
-          <label for="ambient-light">Окружающий свет: <b id="ambient-value">0.50</b></label>
-          <input type="range" id="ambient-light" min="0" max="1" step="0.01" value="0.5">
-          <label style="margin-top:12px" for="directional-light">Направленный свет: <b id="directional-value">1.00</b></label>
-          <input type="range" id="directional-light" min="0" max="1" step="0.01" value="1.0">
-          <div class="row" style="margin-top:10px">
-            <button id="light-color1">Жёлтый свет</button>
-            <button id="light-color2">Голубой свет</button>
-          </div>
-        </div>
-
-        <div class="card status">
-          <div><b>Состояние загрузки</b></div>
-          <div id="progress-bar"><div id="progress"></div></div>
-          <div id="status-text">Ожидание загрузки скриптов...</div>
-          <div style="display:flex; justify-content:space-between; margin-top:6px; opacity:.85">
-            <span>Формат: GLB</span>
-            <span>Версия Three.js: <span id="three-rev">—</span></span>
-          </div>
-        </div>
-      </aside>
     </div>
-
-    <footer>Three.js GLB Loader Demo · Колесо мыши — масштаб модели</footer>
+    <div id="quiz-panel">
+      <div id="question">Нажмите «Старт», чтобы начать опрос</div>
+      <div id="quiz-controls">
+        <button id="start-btn">Старт</button>
+      </div>
+    </div>
   </div>
 
-  <!-- Three.js r126 + GLTFLoader + PointerLockControls (версии должны совпадать) -->
+  <!-- Three.js r126 и вспомогательные скрипты -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
   <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
   <script src="https://unpkg.com/three@0.126.0/examples/js/controls/PointerLockControls.js"></script>
 
   <script>
-    // ======== Глобальные переменные ========
-    let scene, camera, renderer, model;
-    let ambientLight, directionalLight, loader, controls;
-    let rotateModel = true;
-    let rotationSpeed = 0.0;
+  // ========== Настройка 3D сцены ==========
+  let scene, camera, renderer, controls;
+  let ambientLight, directionalLight;
+  let gltfLoader;
+  let model = null;
+  let quizActive = false;
+  let currentArrows = [];
+  let stepIndex = 0;
+  const keys = { w:false, a:false, s:false, d:false, shift:false, space:false, ctrl:false };
+  const clock = new THREE.Clock();
+  const containerEl = document.getElementById('canvas-container');
+  let answerLock = false; // чтобы игнорить повторные клики, пока подсветка играет
 
-    // Клавиши и таймер дельты — ГЛОБАЛЬНО, чтобы не было ReferenceError
-    const keys  = { w:false, a:false, s:false, d:false, space:false, ctrl:false, shift:false };
-    const clock = new THREE.Clock();
+  // Структура опроса: каждый шаг содержит вопрос и список вариантов
+  const QUIZ = {
+    steps: [
+      {
+        question: 'Вы хотите продолжить движение прямо,какую полосу вы  выберите? ',
+        options: [
+          { id:'left',  pos: [-38.275, -1.520, -75.911], color:'#ff3b30', correct:true },
+          { id:'forward', pos:[-41.325, -1.520, -75.007], color:'#ff3b30', correct:true },
+          { id:'right', pos:[-44.346, -1.520, -75.106], color:'#ff3b30', correct:false }
+        ]
+      },
+      {
+        question: 'Вы хотите повернуть на перекрестке налево,какую полосу вы  выберите?',
+        options: [
+          { id:'left',  pos: [-38.667, -1.520, -47.591], color:'#ff3b30', correct:true },
+          { id:'forward', pos:[-41.700, -1.520, -47.023], color:'#ff3b30', correct:false },
+          { id:'right', pos:[-44.295, -1.520, -46.767], color:'#ff3b30', correct:false }
+        ]
+      },
+      
+      {
+        question: 'Где нужно остановиться на красный сигнал светофора?',
+        options: [
+          { id:'stop_line', pos:[-32.442, -1.500, 22.350], color:'#4cd964', correct:true },
+          { id:'traffic_light', pos:[-33.512, -1.520, 26.255], color:'#ff3b30', correct:false }
+        ]
+      }
+    ]
+  };
+function addEnvironment(scene) {
+  // пол (можете поставить y = 0)
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(40, 40),
+    new THREE.MeshStandardMaterial({ color: 0x0a3d62, roughness: 0.85, metalness: 0.15 })
+  );
+  plane.rotation.x = -Math.PI / 2;
+  plane.position.y = -2;          
+  plane.receiveShadow = true;
+  plane.name = 'ground';          
+  scene.add(plane);
 
-    // UI
-    const containerEl = document.getElementById('canvas-container');
-    const loadingOverlay = document.getElementById('loading');
-    const progressBar = document.getElementById('progress');
-    const statusText = document.getElementById('status-text');
-    const rotationValue = document.getElementById('rotation-value');
-    const scaleValue = document.getElementById('scale-value');
-    const ambientValue = document.getElementById('ambient-value');
-    const directionalValue = document.getElementById('directional-value');
-    const threeRev = document.getElementById('three-rev');
+  // сетка-подложка для ориентира
+  const grid = new THREE.GridHelper(40, 40, 0xffffff, 0xffffff);
+  grid.position.y = -2;
+  grid.material.opacity = 0.18;
+  grid.material.transparent = true;
+  scene.add(grid);
 
-    // ======== Инициализация ========
-    function init() {
-      updateStatus('Создание сцены...');
+  return { plane, grid };
+}
 
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0f1620);
-      scene.fog = new THREE.Fog(0x0f1620, 1, 150);
+  // Функция создания стрелки в виде спрайта из SVG
+  function createArrowSprite(color='#ff3b30') {
+    const svg = encodeURIComponent(
+      `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
+      `<polygon points='50,10 90,60 70,60 70,90 30,90 30,60 10,60' fill='${color}'/>` +
+      `</svg>`
+    );
+    const texture = new THREE.TextureLoader().load(`data:image/svg+xml;utf8,${svg}`);
+    const material = new THREE.SpriteMaterial({ map: texture, transparent:true, depthWrite:false });
+    return new THREE.Sprite(material);
+  }
 
-      camera = new THREE.PerspectiveCamera(75, containerEl.offsetWidth / containerEl.offsetHeight, 0.1, 1000);
-      camera.position.set(0, 1.2, 4);
+  // Подсветка вокруг стрелки
+  function createRing(color=0xffffff, radius=0.5) {
+    const geometry = new THREE.RingGeometry(radius*0.65, radius, 32);
+    const material = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent:true, opacity:0.9 });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI/2;
+    return mesh;
+  }
 
-      renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-      renderer.setSize(containerEl.offsetWidth, containerEl.offsetHeight);
-      renderer.shadowMap.enabled = true;
-      containerEl.appendChild(renderer.domElement);
-
-      // Свободная камера (Pointer Lock)
-      controls = new THREE.PointerLockControls(camera, renderer.domElement);
-      scene.add(controls.getObject());
-
-      // Клик по сцене — захват мыши
-      containerEl.addEventListener('click', () => controls.lock());
-
-      addLights();
-      addEnvironment();
-
-      // Загрузчик GLTF/GLB
-      loader = new THREE.GLTFLoader();
-
-      loadModel();
-
-      setupEventListeners();
-
-      // Версия three.js
-      threeRev.textContent = 'r' + THREE.REVISION;
-
-      animate();
+  // Отобразить текущий шаг
+  function showStep(i) {
+    // Удалить старые стрелки
+    currentArrows.forEach(group => {
+      group.children.forEach(child => { if (child.geometry) child.geometry.dispose(); if (child.material) child.material.dispose(); });
+      scene.remove(group);
+    });
+    currentArrows.length = 0;
+    // Если шагов больше нет, показать финал
+    if (i >= QUIZ.steps.length) {
+      document.getElementById('question').textContent = 'Опрос завершён! Спасибо за ответы.';
+      document.getElementById('quiz-controls').innerHTML = '';
+      quizActive = false;
+      return;
     }
+    stepIndex = i;
+    const step = QUIZ.steps[i];
+    document.getElementById('question').textContent = step.question;
+    // Создаём группу стрелок по вариантам
+    step.options.forEach(opt => {
+      const group = new THREE.Group();
+      const ring  = createRing(0xffffff, 0.6);
+      const sprite = createArrowSprite(opt.color);
+      sprite.position.y = 0.8;
+      group.add(ring);
+      group.add(sprite);
+      group.position.set(opt.pos[0], opt.pos[1], opt.pos[2]);
+      group.userData.opt = opt;
+      currentArrows.push(group);
+      scene.add(group);
+    });
+    resetArrowsVisual();
+  }
 
-    // ======== Свет ========
-    function addLights() {
-      ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-      scene.add(ambientLight);
+  // Обработчик клика по сцене
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  function setArrowVisual(group, mode = 'idle') {
+  const ring   = group.children[0];         // кольцо
+  const sprite = group.children[1];         // спрайт-стрелка
+  if (!ring || !sprite) return;
 
-      directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-      directionalLight.position.set(3, 6, 2);
-      directionalLight.castShadow = true;
-      directionalLight.shadow.mapSize.set(1024, 1024);
-      directionalLight.shadow.camera.near = 0.5;
-      directionalLight.shadow.camera.far = 50;
-      scene.add(directionalLight);
+  if (mode === 'idle') {
+    ring.material.color.set(0xffffff);
+    ring.material.opacity = 0.9;
+    sprite.material.opacity = 1.0;
+  } else if (mode === 'dim') {
+    ring.material.color.set(0x666666);
+    ring.material.opacity = 0.6;
+    sprite.material.opacity = 0.5;
+  } else if (mode === 'wrong') {
+    ring.material.color.set(0xff3355);
+    ring.material.opacity = 1.0;
+    sprite.material.opacity = 1.0;
+  } else if (mode === 'correct') {
+    ring.material.color.set(0x44d864);
+    ring.material.opacity = 1.0;
+    sprite.material.opacity = 1.0;
+  }
+  ring.material.needsUpdate = true;
+  sprite.material.needsUpdate = true;
+}
 
-      const helper = new THREE.DirectionalLightHelper(directionalLight, 0.6);
-      scene.add(helper);
-    }
+function resetArrowsVisual() {
+  currentArrows.forEach(g => setArrowVisual(g, 'idle'));
+}
+  function onClick(event) {
+  if (!quizActive || answerLock) return;
 
-    // ======== Окружение (пол + сетка) ========
-    function addEnvironment() {
-      const planeGeo = new THREE.PlaneGeometry(40, 40);
-      const planeMat = new THREE.MeshStandardMaterial({ color:0x0a3d62, roughness:0.85, metalness:0.15 });
-      const plane = new THREE.Mesh(planeGeo, planeMat);
-      plane.rotation.x = -Math.PI / 2;
-      plane.position.y = -2;
-      plane.receiveShadow = true;
-      scene.add(plane);
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
 
-      const grid = new THREE.GridHelper(40, 40, 0xffffff, 0xffffff);
-      grid.position.y = -2;
-      grid.material.opacity = 0.18;
-      grid.material.transparent = true;
-      scene.add(grid);
-    }
+  const hits = raycaster.intersectObjects(currentArrows, true);
+  if (!hits.length) return;
 
-    // ======== Загрузка модели ========
-    function loadModel() {
-      updateStatus('Начало загрузки модели...');
+  // групповая стрелка (родитель кольца/спрайта)
+  const group = hits[0].object.parent;
+  const opt = group.userData.opt;
 
-      // Путь к вашей модели: замените при необходимости
-      const modelUrl = './model.glb';
+  // Включаем «лок», чтобы не ловить повторные клики в анимации
+  answerLock = true;
 
-      loader.load(
-        modelUrl,
-        (gltf) => {
-          model = gltf.scene;
-          model.position.set(0, -1, 0);
-          model.scale.set(1, 1, 1);
+  if (!opt.correct) {
+    // Неверно: показали красный для выбранной и приглушили остальные...
+    currentArrows.forEach(g => setArrowVisual(g, g === group ? 'wrong' : 'dim'));
+    // ...и через 700 мс вернули всё в исходное
+    setTimeout(() => { resetArrowsVisual(); answerLock = false; }, 700);
+    return;
+  }
 
-          model.traverse((child) => {
-            if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+  // Верно: зелёный + приглушить остальные и перейти дальше
+  currentArrows.forEach(g => setArrowVisual(g, g === group ? 'correct' : 'dim'));
+  setTimeout(() => {
+    showStep(stepIndex + 1);
+    answerLock = false;
+  }, 700);
+}
+
+
+
+  // Инициализация сцены и загрузка модели
+  function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f1620);
+    scene.fog = new THREE.Fog(0x0f1620, 1, 150);
+    scene.add(new THREE.AxesHelper(100));        // X=красн, Y=зелён, Z=син
+    // или к самой модели, чтобы видеть её локальные оси:
+    if (model) model.add(new THREE.AxesHelper(1.5));
+    const aspect = containerEl.clientWidth / containerEl.clientHeight;
+    camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+    camera.position.set(0, 1.6, 5);
+    renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setSize(containerEl.clientWidth, containerEl.clientHeight);
+    renderer.shadowMap.enabled = true;
+    containerEl.appendChild(renderer.domElement);
+    // Свет
+    ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(4, 8, 4);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+    // Плоскость земли
+
+  //coord
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  let pickMode = false;
+
+  const probe = new THREE.Mesh(
+    new THREE.SphereGeometry(0.06, 24, 24),
+    new THREE.MeshStandardMaterial({ color: 0xff00aa, emissive: 0x220011 })
+  );
+  probe.visible = false;
+  scene.add(probe);
+
+    const planeGeo = new THREE.PlaneGeometry(50, 50);
+    const planeMat = new THREE.MeshStandardMaterial({ color:0x23324a, roughness:0.8, metalness:0.2 });
+    const plane = new THREE.Mesh(planeGeo, planeMat);
+    plane.rotation.x = -Math.PI/2;
+    plane.position.y = -1.5;
+    plane.receiveShadow = true;
+    scene.add(plane);
+    // Сетка
+    const grid = new THREE.GridHelper(50, 50, 0xffffff, 0xffffff);
+    grid.position.y = -1.5 + 0.01;
+    grid.material.opacity = 0.15;
+    grid.material.transparent = true;
+    scene.add(grid);
+    // Pointer Lock Controls для свободной навигации
+    controls = new THREE.PointerLockControls(camera, renderer.domElement);
+    scene.add(controls.getObject());
+    containerEl.addEventListener('click', () => controls.lock());
+    // Слушаем клик по канвасу
+    renderer.domElement.addEventListener('click', onClick);
+    // Клавиатура для перемещения
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW') keys.w = true;
+      if (e.code === 'KeyA') keys.a = true;
+      if (e.code === 'KeyS') keys.s = true;
+      if (e.code === 'KeyD') keys.d = true;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = true;
+      if (e.code === 'Space') keys.space = true;
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') keys.ctrl = true;
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyW') keys.w = false;
+      if (e.code === 'KeyA') keys.a = false;
+      if (e.code === 'KeyS') keys.s = false;
+      if (e.code === 'KeyD') keys.d = false;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
+      if (e.code === 'Space') keys.space = false;
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') keys.ctrl = false;
+    });
+    // Загрузчик моделей
+    gltfLoader = new THREE.GLTFLoader();
+    loadModel();
+    animate();
+  }
+
+  // Загрузить внешний GLB. Если файл отсутствует, сцена будет пустой
+  function loadModel() {
+    const modelUrl = 'model.glb';
+    gltfLoader.load(
+      modelUrl,
+      (gltf) => {
+        model = gltf.scene;
+        model.position.set(0, -1.5, 0);
+        model.traverse((child) => {
+          if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+        });
+        scene.add(model);
+        // === Пометить дорогу как цель для луча ===
+        let road = model.getObjectByName('Road'); // если знаете точное имя
+        if (!road) {
+          // или ищем по части имени
+          model.traverse(o => {
+            if (o.isMesh && /road|asphalt|дорога/i.test(o.name)) {
+              o.name = 'ground';
+            }
           });
-
-          scene.add(model);
-          addBBox(model);
-
-          // Синхронизируем UI масштаба
-          document.getElementById('model-scale').value = 1;
-          scaleValue.textContent = '1.0';
-
-          updateStatus('Модель успешно загружена!');
-          progressBar.style.width = '100%';
-          setTimeout(() => {
-            loadingOverlay.style.opacity = '0';
-            setTimeout(() => { loadingOverlay.style.display = 'none'; }, 400);
-          }, 600);
-        },
-        (xhr) => {
-          if (xhr.total) {
-            const percent = (xhr.loaded / xhr.total) * 100;
-            progressBar.style.width = percent.toFixed(0) + '%';
-            updateStatus('Загрузка модели: ' + Math.round(percent) + '%');
-          } else {
-            // Если браузер не предоставляет total, просто показываем «идёт загрузка»
-            updateStatus('Загрузка модели…');
-          }
-        },
-        (error) => {
-          console.error('Ошибка загрузки модели', error);
-          updateStatus('Ошибка загрузки модели. Проверьте консоль.');
-          progressBar.style.background = '#ff4757';
+        } else {
+          road.name = 'ground';
         }
-      );
+      },
+      undefined,
+      (error) => { console.warn('Не удалось загрузить модель', error); }
+    );
+    document.getElementById('loading').style.display = 'none';
+  }
+
+  // Анимация
+  function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    // Движение свободной камерой
+    const baseSpeed = 4;
+    const moveSpeed = (keys.shift ? 12 : baseSpeed) * delta;
+    if (controls.isLocked) {
+      if (keys.w) controls.moveForward(moveSpeed);
+      if (keys.s) controls.moveForward(-moveSpeed);
+      if (keys.a) controls.moveRight(-moveSpeed);
+      if (keys.d) controls.moveRight(moveSpeed);
+      const obj = controls.getObject();
+      if (keys.space) obj.position.y += moveSpeed;
+      if (keys.ctrl)  obj.position.y -= moveSpeed;
     }
+    renderer.render(scene, camera);
+  }
 
-    // ======== Вспомогательная рамка вокруг модели ========
-    function addBBox(obj) {
-      if (!obj) return;
+  // Запуск опроса
+  function startQuiz() {
+    quizActive = true;
+    document.getElementById('quiz-controls').innerHTML = '';
+    showStep(0);
+  }
 
-      // удалить старую рамку, если была
-      if (obj.userData.bbox) {
-        obj.remove(obj.userData.bbox);
-        obj.userData.bbox.geometry.dispose();
-        obj.userData.bbox.material.dispose();
-      }
-
-      obj.updateMatrixWorld(true);
-      const worldBox = new THREE.Box3().setFromObject(obj);
-      const size = worldBox.getSize(new THREE.Vector3());
-      const worldScl = new THREE.Vector3();
-      obj.getWorldScale(worldScl);
-      size.divide(worldScl);
-      const center = worldBox.getCenter(new THREE.Vector3());
-      obj.worldToLocal(center);
-
-      const geom = new THREE.BoxGeometry(size.x, size.y, size.z);
-      geom.translate(center.x, center.y, center.z);
-      const edges = new THREE.EdgesGeometry(geom);
-      const bbox = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color:0xffff00, opacity:0.7, transparent:true }));
-      obj.add(bbox);
-      obj.userData.bbox = bbox;
-    }
-
-    // ======== UI и события ========
-    function setupEventListeners() {
-      // Изменение размера окна
-      window.addEventListener('resize', onWindowResize);
-
-      // Ползунки и кнопки
-      document.getElementById('rotation-speed').addEventListener('input', (e) => {
-        rotationSpeed = parseFloat(e.target.value);
-        rotationValue.textContent = rotationSpeed.toFixed(2);
-      });
-
-      document.getElementById('model-scale').addEventListener('input', (e) => {
-        if (!model) return;
-        const s = parseFloat(e.target.value);
-        model.scale.set(s, s, s);
-        scaleValue.textContent = s.toFixed(1);
-        addBBox(model);
-      });
-
-      document.getElementById('ambient-light').addEventListener('input', (e) => {
-        const v = parseFloat(e.target.value);
-        ambientLight.intensity = v;
-        ambientValue.textContent = v.toFixed(2);
-      });
-
-      document.getElementById('directional-light').addEventListener('input', (e) => {
-        const v = parseFloat(e.target.value);
-        directionalLight.intensity = v;
-        directionalValue.textContent = v.toFixed(2);
-      });
-
-      document.getElementById('reset-position').addEventListener('click', () => {
-        if (!model) return;
-        model.rotation.set(0, 0, 0);
-      });
-
-      document.getElementById('toggle-rotation').addEventListener('click', (e) => {
-        rotateModel = !rotateModel;
-        e.target.textContent = rotateModel ? 'Выключить вращение' : 'Включить вращение';
-      });
-
-      document.getElementById('light-color1').addEventListener('click', () => directionalLight.color.set(0xffff00));
-      document.getElementById('light-color2').addEventListener('click', () => directionalLight.color.set(0x00ffff));
-
-      // Вращение модели мышью (до захвата мыши)
-      let isDragging = false;
-      let prev = { x: 0, y: 0 };
-
-      renderer.domElement.addEventListener('mousedown', () => {
-        // Если уже захвачен курсор (Pointer Lock), не включаем «drag-вращение»
-        if (!controls.isLocked) isDragging = true;
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (!isDragging || !model || controls.isLocked) { prev.x = e.clientX; prev.y = e.clientY; return; }
-        const dx = e.clientX - prev.x;
-        const dy = e.clientY - prev.y;
-        model.rotation.y += dx * 0.01;
-        model.rotation.x += dy * 0.01;
-        prev.x = e.clientX; prev.y = e.clientY;
-      });
-
-      window.addEventListener('mouseup', () => { isDragging = false; });
-
-      // Масштаб модели колесом мыши
-      renderer.domElement.addEventListener('wheel', (e) => {
-        if (!model) return;
-        e.preventDefault();
-        const current = model.scale.x;
-        const next = Math.min(Math.max(0.5, current + (-e.deltaY * 0.001)), 2.0);
-        model.scale.set(next, next, next);
-        document.getElementById('model-scale').value = next.toFixed(1);
-        scaleValue.textContent = next.toFixed(1);
-        addBBox(model);
-      }, { passive:false });
-
-      // ===== Клавиатура для свободной камеры =====
-      const block = new Set(['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft','ShiftRight','ControlLeft','ControlRight']);
-
-      window.addEventListener('keydown', (e) => {
-        if (block.has(e.code)) e.preventDefault();
-        if (e.code === 'KeyW') keys.w = true;
-        if (e.code === 'KeyA') keys.a = true;
-        if (e.code === 'KeyS') keys.s = true;
-        if (e.code === 'KeyD') keys.d = true;
-        if (e.code === 'Space') keys.space = true;
-        if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = true;
-        if (e.code === 'ControlLeft' || e.code === 'ControlRight') keys.ctrl = true;
-      });
-
-      window.addEventListener('keyup', (e) => {
-        if (e.code === 'KeyW') keys.w = false;
-        if (e.code === 'KeyA') keys.a = false;
-        if (e.code === 'KeyS') keys.s = false;
-        if (e.code === 'KeyD') keys.d = false;
-        if (e.code === 'Space') keys.space = false;
-        if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
-        if (e.code === 'ControlLeft' || e.code === 'ControlRight') keys.ctrl = false;
-      });
-    }
-
-    // ======== Resize ========
-    function onWindowResize() {
-      camera.aspect = containerEl.offsetWidth / containerEl.offsetHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(containerEl.offsetWidth, containerEl.offsetHeight);
-    }
-
-    // ======== Анимация ========
-    function animate() {
-      requestAnimationFrame(animate);
-
-      if (model && rotateModel && !controls.isLocked) {
-        model.rotation.y += 0.005 * rotationSpeed;
-      }
-
-      // Движение свободной камерой
-      const delta = clock.getDelta();
-      const baseSpeed = 4;
-      const speed = (keys.shift ? 20 : baseSpeed) * delta;
-
-      if (controls.isLocked) {
-        if (keys.w) controls.moveForward(speed);
-        if (keys.s) controls.moveForward(-speed);
-        if (keys.a) controls.moveRight(-speed);
-        if (keys.d) controls.moveRight(speed);
-
-        // Вертикаль (Space/Ctrl)
-        const obj = controls.getObject();
-        if (keys.space) obj.position.y += speed;
-        if (keys.ctrl)  obj.position.y -= speed;
-      }
-
-      renderer.render(scene, camera);
-    }
-
-    // ======== Утилиты ========
-    function updateStatus(msg) { statusText.textContent = msg; }
-
-    // Старт
-    window.addEventListener('load', init);
+  // Инициализируем после загрузки страницы
+  window.addEventListener('load', init);
+  document.getElementById('start-btn').addEventListener('click', startQuiz);
   </script>
 </body>
 </html>
-
-
