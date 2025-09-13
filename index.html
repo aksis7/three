@@ -328,7 +328,7 @@ function resetArrowsVisual() {
     scene.add(ambientLight);
     directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(4, 8, 4);
-    directionalLight.castShadow = true;
+    directionalLight.castShadow = false;
     scene.add(directionalLight);
     // Плоскость земли
 
@@ -349,10 +349,10 @@ function resetArrowsVisual() {
     const plane = new THREE.Mesh(planeGeo, planeMat);
     plane.rotation.x = -Math.PI/2;
     plane.position.y = -1.5;
-    plane.receiveShadow = true;
+    plane.receiveShadow = false;
     scene.add(plane);
     // Сетка
-    const grid = new THREE.GridHelper(50, 50, 0xffffff, 0xffffff);
+    //const grid = new THREE.GridHelper(50, 50, 0xffffff, 0xffffff);
     grid.position.y = -1.5 + 0.01;
     grid.material.opacity = 0.15;
     grid.material.transparent = true;
@@ -485,4 +485,5 @@ function resetArrowsVisual() {
   </script>
 </body>
 </html>
+
 
