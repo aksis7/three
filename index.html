@@ -321,7 +321,7 @@ function resetArrowsVisual() {
     camera.position.set(0, 1.6, 5);
     renderer = new THREE.WebGLRenderer({ antialias:true });
     renderer.setSize(containerEl.clientWidth, containerEl.clientHeight);
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = false;
     containerEl.appendChild(renderer.domElement);
     // Свет
     ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -485,3 +485,4 @@ function resetArrowsVisual() {
   </script>
 </body>
 </html>
+
