@@ -13,6 +13,7 @@
     .subtitle { font-size:13px; opacity:.8; margin-top:4px; }
     .main { flex:1; display:flex; gap:20px; padding:20px; min-height:0; }
     #canvas-container { position:relative; flex:3; min-height:300px; border-radius:14px; overflow:hidden; background:rgba(255,255,255,.05); box-shadow:0 10px 30px rgba(0,0,0,.35) inset, 0 8px 32px rgba(0,0,0,.3); }
+    #canvas-container canvas { width: 100%; height: 100%; display: block; }
     #canvas-container canvas { display:block; }
     #quiz-panel { flex:1; display:flex; flex-direction:column; background:rgba(255,255,255,.05); border-radius:14px; padding:16px; gap:16px; }
     #question { font-size:16px; font-weight:600; line-height:1.3; }
@@ -46,9 +47,15 @@
   </div>
 
   <!-- Three.js r126 и вспомогательные скрипты -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
-  <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://unpkg.com/three@0.126.0/examples/js/controls/PointerLockControls.js"></script>
+  <!-- все ИЗ ОДНОЙ версии three! -->
+<script src="https://unpkg.com/three@0.139.2/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.139.2/examples/js/utils/WorkerPool.js"></script>
+<script src="https://unpkg.com/three@0.139.2/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.139.2/examples/js/loaders/DRACOLoader.js"></script>
+<script src="https://unpkg.com/three@0.139.2/examples/js/loaders/KTX2Loader.js"></script>
+<script src="https://unpkg.com/three@0.139.2/examples/js/controls/PointerLockControls.js"></script>
+
+<script src="https://unpkg.com/meshoptimizer@0.25.0/meshopt_decoder.js"></script>
 
   <script>
   // ========== Настройка 3D сцены ==========
@@ -222,6 +229,7 @@ function addEnvironment(scene) {
       group.add(ring);
       group.add(sprite);
       group.position.set(opt.pos[0], opt.pos[1], opt.pos[2]);
+      group.position.y += 0.05; // +5 см над поверхностью
       group.userData.opt = opt;
       currentArrows.push(group);
       scene.add(group);
@@ -375,16 +383,37 @@ function resetArrowsVisual() {
       if (e.code === 'ControlLeft' || e.code === 'ControlRight') keys.ctrl = false;
     });
     // Загрузчик моделей
-    gltfLoader = new THREE.GLTFLoader();
-    loadModel();
-    animate();
-  }
+    // LoadingManager — чтобы прятать оверлей, когда всё загрузилось
+    const manager = new THREE.LoadingManager(() => {
+      document.getElementById('loading').style.display = 'none';
+    });
+
+    gltfLoader = new THREE.GLTFLoader(manager);
+
+    // DRACO (если модель с DRACO — безопасно подключать даже если не нужна)
+    const draco = new THREE.DRACOLoader();
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    gltfLoader.setDRACOLoader(draco);
+
+    // Meshopt (если в модели есть meshopt-буферы)
+    if (window.MeshoptDecoder) {
+      gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+    }
+
+    // KTX2 (для BasisU/KTX2 текстур из вашего model-compressed.glb)
+    const ktx2 = new THREE.KTX2Loader(manager)
+      .setTranscoderPath('https://unpkg.com/three@0.139.2/examples/js/libs/basis/')
+      .detectSupport(renderer);
+    gltfLoader.setKTX2Loader(ktx2);
+        loadModel();
+        animate();
+      }
 
   // Загрузить внешний GLB. Если файл отсутствует, сцена будет пустой
   function loadModel() {
     // Путь к glb-файлу. HTML и модель находятся в одной директории,
     // поэтому достаточно указать имя файла без перехода «../».
-    const modelUrl = 'model.glb';
+    const modelUrl = 'model-compressed.glb';
     gltfLoader.load(
       modelUrl,
       (gltf) => {
