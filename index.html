@@ -8,7 +8,7 @@
     *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
     body{background:#0f1620;color:#fff;min-height:100vh;overflow:hidden}
     /* Канвас на весь экран */
-    #canvas-container{position:fixed;inset:0;overflow:hidden}
+    #canvas-container{position:fixed;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0f1620}
     #canvas-container{touch-action:pan-y pinch-zoom}
     #canvas-container canvas{width:100%;height:100%;display:block}
 
@@ -55,7 +55,20 @@
   <script src="https://unpkg.com/meshoptimizer@0.25.0/meshopt_decoder.js"></script>
 
   <script>
-  let scene,camera,renderer,controls;let ambientLight,directionalLight;let gltfLoader;let model=null;let quizActive=false;let currentArrows=[];let stepIndex=0;const keys={w:false,a:false,s:false,d:false,shift:false,space:false,ctrl:false};const clock=new THREE.Clock();const containerEl=document.getElementById('canvas-container');let answerLock=false; // блокируем повторные клики во время анимации
+  let scene,camera,renderer,controls;let ambientLight,directionalLight;let gltfLoader;let model=null;let quizActive=false;let currentArrows=[];let stepIndex=0;const keys={w:false,a:false,s:false,d:false,shift:false,space:false,ctrl:false};const clock=new THREE.Clock();const containerEl=document.getElementById('canvas-container');
+  // Фиксированная область видимости для всех устройств (letterbox / pillarbox)
+  function computeSafeAspect(){ return (window.innerWidth >= window.innerHeight) ? 16/9 : 9/16; }
+  let SAFE_ASPECT = computeSafeAspect(); // авто: 16:9 в альбомной, 9:16 в портретной ориентации
+  function fitRenderer(){
+    const W = window.innerWidth, H = window.innerHeight;
+    const a = SAFE_ASPECT;
+    let stageW, stageH;
+    if (W / H > a) { stageH = H; stageW = Math.round(H * a); }
+    else           { stageW = W; stageH = Math.round(W / a); }
+    renderer.setSize(stageW, stageH, false);
+    const c = renderer.domElement; c.style.width = stageW+'px'; c.style.height = stageH+'px';
+  }
+  let answerLock=false; // блокируем повторные клики во время анимации
 
   // --- Фиксация камеры во время вопросов ---
   const FIX_CAMERA_DURING_QUESTIONS = true; // можно выключить при необходимости
@@ -87,7 +100,53 @@
   ];
 
   let smoothMove=false;let cameraTarget=null;
-  function moveCameraToStep(i){const viewPos=STEP_VIEW_POSITIONS[i];const lookAt=STEP_LOOK_AT[i];if(!viewPos)return;const obj=controls.getObject();if(smoothMove){cameraTarget=viewPos.clone()}else{obj.position.copy(viewPos);cameraTarget=null}if(lookAt){obj.lookAt(lookAt)}}
+  function moveCameraToStep(index) {
+  const viewPos = STEP_VIEW_POSITIONS[index];
+  const lookAt  = STEP_LOOK_AT[index];
+  if (!viewPos) return;
+
+  // Базовая дистанция (как было раньше)
+  const baseDist = viewPos.clone().sub(lookAt).length();
+
+  // Оси относительно дороги
+  const forward = lookAt.clone().sub(viewPos).normalize();
+  const up = new THREE.Vector3(0, 1, 0);
+  const right = new THREE.Vector3().crossVectors(up, forward).normalize();
+
+  // Горизонтальная FOV с учётом выбранного аспекта
+  const vFov = THREE.MathUtils.degToRad(camera.fov);
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * SAFE_ASPECT);
+
+  // Полуширина разброса вариантов поперёк дороги
+  const step = QUIZ.steps[index];
+  let halfWidth = 0;
+  if (step && step.options) {
+    for (const opt of step.options) {
+      const p = new THREE.Vector3(opt.pos[0], opt.pos[1], opt.pos[2]);
+      const lateral = p.clone().sub(lookAt).dot(right);
+      halfWidth = Math.max(halfWidth, Math.abs(lateral));
+    }
+  }
+  halfWidth += 0.8; // небольшой запас
+
+  // Минимальная дистанция до центра, чтобы всё влезло по ширине
+  const minDist = halfWidth / Math.tan(hFov / 2);
+  const targetDist = Math.max(baseDist, minDist);
+
+  const targetPos = lookAt.clone().addScaledVector(forward, -targetDist);
+  targetPos.y = viewPos.y;
+
+  const obj = controls.getObject();
+  if (smoothMove) {
+    cameraTarget = targetPos.clone();
+  } else {
+    obj.position.copy(targetPos);
+    cameraTarget = null;
+  }
+
+  if (lookAt) obj.lookAt(lookAt);
+}
+
 
   function createArrowSprite(color='#ff3b30'){const svg=encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,10 90,60 70,60 70,90 30,90 30,60 10,60' fill='${color}'/></svg>`);const texture=new THREE.TextureLoader().load(`data:image/svg+xml;utf8,${svg}`);const material=new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false});return new THREE.Sprite(material)}
   function createRing(color=0xffffff,radius=0.5){const g=new THREE.RingGeometry(radius*0.65,radius,32);const m=new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide,transparent:true,opacity:0.9});const mesh=new THREE.Mesh(g,m);mesh.rotation.x=-Math.PI/2;return mesh}
@@ -107,8 +166,10 @@
   function onClick(e){if(!quizActive||answerLock)return;const rect=renderer.domElement.getBoundingClientRect();mouse.x=((e.clientX-rect.left)/rect.width)*2-1;mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(currentArrows,true);if(!hits.length)return;const group=hits[0].object.parent;const opt=group.userData.opt;answerLock=true;if(!opt.correct){currentArrows.forEach(g=>setArrowVisual(g,g===group?'wrong':'dim'));setTimeout(()=>{resetArrowsVisual();answerLock=false},700);return}currentArrows.forEach(g=>setArrowVisual(g,g===group?'correct':'dim'));setTimeout(()=>{showStep(stepIndex+1);answerLock=false},700)}
 
   function init(){scene=new THREE.Scene();scene.background=new THREE.Color(0x0f1620);scene.fog=new THREE.Fog(0x0f1620,1,150);
-    const aspect=containerEl.clientWidth/containerEl.clientHeight;camera=new THREE.PerspectiveCamera(75,aspect,0.1,1000);camera.position.set(0,1.6,5);
-    renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(containerEl.clientWidth,containerEl.clientHeight);renderer.shadowMap.enabled=true;containerEl.appendChild(renderer.domElement);
+    const aspect=containerEl.clientWidth/containerEl.clientHeight;camera=new THREE.PerspectiveCamera(75,SAFE_ASPECT,0.1,1000);camera.position.set(0,1.6,5);
+    renderer=new THREE.WebGLRenderer({antialias:true});
+    // Размер сцены подгоняем под безопасное соотношение сторон, добавляя «поля» при необходимости
+    fitRenderer();renderer.shadowMap.enabled=true;containerEl.appendChild(renderer.domElement);
     ambientLight=new THREE.AmbientLight(0xffffff,0.5);scene.add(ambientLight);directionalLight=new THREE.DirectionalLight(0xffffff,0.8);directionalLight.position.set(4,8,4);directionalLight.castShadow=true;scene.add(directionalLight);
 
     // Земля/сетка как ориентир (при необходимости можно удалить)
@@ -116,7 +177,13 @@
 
     controls=new THREE.PointerLockControls(camera,renderer.domElement);scene.add(controls.getObject());// Лочим указатель мыши только если разрешён свободный обзор
     containerEl.addEventListener('click', ()=> { if (freeLook) controls.lock(); });renderer.domElement.addEventListener('click',onClick);
-    window.addEventListener('resize',()=>{camera.aspect=containerEl.clientWidth/containerEl.clientHeight;camera.updateProjectionMatrix();renderer.setSize(containerEl.clientWidth,containerEl.clientHeight)});
+    window.addEventListener('resize',()=>{
+      SAFE_ASPECT = computeSafeAspect();
+      camera.aspect = SAFE_ASPECT;
+      camera.updateProjectionMatrix();
+      fitRenderer();
+      if (quizActive) moveCameraToStep(stepIndex);
+    });
 
     // Загрузчики с менеджером чтобы убрать оверлей
     const manager=new THREE.LoadingManager(()=>{document.getElementById('loading').style.display='none'});
